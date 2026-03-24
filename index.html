@@ -1,517 +1,1512 @@
-// ============================================================
-// WASH NOW — Script Automático Completo v2
-// Qualificação → Devis VosFactures → Email + WhatsApp
-// ============================================================
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wash Now — Follow-Up Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0d;
+  --surface: #161613;
+  --surface2: #1e1e1a;
+  --surface3: #252520;
+  --border: #2e2e28;
+  --border2: #3a3a32;
+  --text: #f0efe8;
+  --muted: #7a7a6e;
+  --muted2: #4a4a42;
+  --green: #2d9e6b;
+  --green-lt: #0f2a1e;
+  --green-dim: #1a6b4a;
+  --gold: #d4a017;
+  --gold-lt: #2a2008;
+  --blue: #3b7dd8;
+  --blue-lt: #0d1e38;
+  --red: #d45050;
+  --red-lt: #2a0f0f;
+  --orange: #d47a20;
+  --orange-lt: #2a1808;
+  --you: #d4a017;   /* tasks for Diogo */
+  --ai: #2d9e6b;    /* tasks for Claude */
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+}
 
-// ⚙️ CONFIGURAÇÃO
-const APP_URL            = "https://cerqueira2801.github.io/washnow-crm/";
-const EMAIL_DIOGO        = "diogocerqueira@washnow.lu";
-const SHEET_NAME         = "LIMPEZA DOMÉSTICA";
-const VOSFACTURES_TOKEN  = "COLA_AQUI_O_TOKEN_COMPLETO";
-const VOSFACTURES_DOMAIN = "diogocerqueira635";
-const WHATSAPP_NUM       = "352691933095";
+/* ── LAYOUT ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
 
-// Colunas da Sheet (A=1, B=2...)
-const COL = {
-  DATA:        1,
-  NOME:        2,
-  TELEFONE:    3,
-  SERVICO:     4,
-  FREQUENCIA:  5,
-  SUPERFICIE:  6,
-  ZONA:        7,
-  EMAIL:       8,
-  ESTADO:      9,
-  PROXIMO:     10,
-  VALOR:       11,
-  INFOS:       12,
-  PROCESSADA:  13,
-  LINK_CRM:    14,
-  QUALIF:      15, // M = flag "email qualif enviado"
-  DEVIS_ID:    16, // N = ID do devis criado no VosFactures
+/* SIDEBAR */
+.sidebar {
+  width: 300px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-head {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.logo-mark {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, var(--green-dim), var(--green));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.logo-text { font-family: 'Instrument Serif', serif; font-size: 1.1rem; color: var(--text); }
+.logo-text span { color: var(--muted); font-size: 0.75rem; font-family: 'DM Sans', sans-serif; display: block; margin-top: -2px; }
+
+.btn-add {
+  width: 100%;
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-add:hover { background: var(--green); }
+
+.sidebar-filters {
+  display: flex; gap: 4px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-btn {
+  flex: 1; background: none; border: 1px solid var(--border);
+  color: var(--muted); border-radius: 6px;
+  padding: 5px 4px; font-size: 0.7rem; font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+.filter-btn.active { background: var(--surface3); border-color: var(--border2); color: var(--text); }
+
+.lead-list { flex: 1; overflow-y: auto; padding: 8px; }
+.lead-list::-webkit-scrollbar { width: 4px; }
+.lead-list::-webkit-scrollbar-track { background: transparent; }
+.lead-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.lead-item {
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  position: relative;
+}
+.lead-item:hover { background: var(--surface2); }
+.lead-item.active { background: var(--surface2); border-color: var(--border2); }
+.lead-item-top { display: flex; align-items: center; gap: 8px; }
+.lead-item-avatar {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; flex-shrink: 0;
+}
+.lead-item-name { font-weight: 600; font-size: 0.85rem; flex: 1; }
+.lead-item-badge {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.3px;
+  padding: 2px 6px; border-radius: 4px;
+}
+.lead-item-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; margin-left: 38px; }
+.urgent-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); position: absolute;
+  top: 10px; right: 10px;
+}
+
+/* MAIN PANEL */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.main-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0;
+}
+.main-avatar {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+}
+.main-info { flex: 1; }
+.main-name { font-family: 'Instrument Serif', serif; font-size: 1.2rem; }
+.main-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.main-actions { display: flex; gap: 8px; }
+.action-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 7px;
+  padding: 7px 12px; font-size: 0.78rem; font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.action-btn:hover { border-color: var(--border2); background: var(--surface3); }
+.action-btn.danger { color: var(--red); }
+.action-btn.danger:hover { background: var(--red-lt); border-color: var(--red); }
+
+/* PIPELINE BAR */
+.pipeline-bar {
+  display: flex;
+  padding: 16px 24px 0;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.step-item {
+  flex: 1; padding: 0 0 12px; text-align: center;
+  position: relative; cursor: default;
+}
+.step-item::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--border);
+}
+.step-item.done::after { background: var(--green); }
+.step-item.current::after { background: var(--gold); }
+.step-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 700;
+  margin: 0 auto 5px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.step-item.done .step-num { border-color: var(--green); color: var(--green); background: var(--green-lt); }
+.step-item.current .step-num { border-color: var(--gold); color: var(--gold); background: var(--gold-lt); }
+.step-label { font-size: 0.68rem; color: var(--muted); }
+.step-item.current .step-label { color: var(--gold); font-weight: 600; }
+.step-item.done .step-label { color: var(--green); }
+.step-who {
+  font-size: 0.6rem; margin-top: 2px;
+  font-weight: 600; letter-spacing: 0.3px;
+}
+.who-ai { color: var(--ai); }
+.who-you { color: var(--you); }
+
+/* CONTENT AREA */
+.content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.content::-webkit-scrollbar { width: 5px; }
+.content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* NEXT ACTION CARD */
+.next-action-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.nac-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.nac-header-icon { font-size: 1.1rem; }
+.nac-header-title { font-weight: 600; font-size: 0.9rem; flex: 1; }
+.nac-header-who {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;
+  padding: 3px 9px; border-radius: 100px;
+}
+.who-badge-ai { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-dim); }
+.who-badge-you { background: var(--gold-lt); color: var(--gold); border: 1px solid #4a3a08; }
+
+.nac-body { padding: 18px; }
+
+/* Message preview */
+.msg-preview {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.msg-channel {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.msg-body {
+  padding: 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem; line-height: 1.7;
+  color: #d0cfc5;
+  white-space: pre-wrap;
+  min-height: 60px;
+}
+.msg-body.loading { color: var(--muted); font-style: italic; }
+
+.msg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.msg-btn {
+  background: var(--surface3); border: 1px solid var(--border);
+  color: var(--text); border-radius: 7px;
+  padding: 7px 14px; font-size: 0.78rem; font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.msg-btn:hover { border-color: var(--border2); }
+.msg-btn.primary { background: var(--green-dim); border-color: var(--green); color: #fff; }
+.msg-btn.primary:hover { background: var(--green); }
+.msg-btn.regen { color: var(--muted); }
+
+/* YOU CARD */
+.you-card {
+  background: var(--gold-lt);
+  border: 1px solid #4a3a08;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.you-card-title {
+  font-weight: 700; font-size: 0.85rem; color: var(--gold);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+}
+.you-card-steps { display: flex; flex-direction: column; gap: 8px; }
+.you-step {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 0.83rem; line-height: 1.5; color: #c8a850;
+}
+.you-step-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(212,160,23,0.2); color: var(--gold);
+  font-size: 0.68rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.you-step-done { text-decoration: line-through; opacity: 0.5; }
+
+/* DONE BTN */
+.done-btn {
+  width: 100%;
+  margin-top: 14px;
+  background: none;
+  border: 1px dashed var(--border2);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.done-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-lt); }
+
+/* HISTORY */
+.history-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.hc-title {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--muted);
+}
+.hc-body { padding: 4px 0; }
+.h-entry {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.h-entry:last-child { border-bottom: none; }
+.h-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; flex-shrink: 0;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.h-content { flex: 1; }
+.h-text { font-size: 0.82rem; line-height: 1.5; }
+.h-text code {
+  background: var(--surface3); border-radius: 3px;
+  padding: 1px 5px; font-family: 'DM Mono', monospace;
+  font-size: 0.75rem; color: var(--green);
+}
+.h-meta { font-size: 0.68rem; color: var(--muted2); margin-top: 2px; }
+.h-who { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; }
+
+/* EMPTY STATE */
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--muted); text-align: center; padding: 40px;
+}
+.empty-state .big { font-size: 3rem; margin-bottom: 16px; }
+.empty-state p { font-size: 0.88rem; line-height: 1.6; }
+
+/* MODAL */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 300;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  width: 100%; max-width: 520px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: pop 0.18s ease;
+}
+@keyframes pop { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+.modal-head {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head h3 { font-family: 'Instrument Serif', serif; font-size: 1.1rem; }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.7rem; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; text-transform: uppercase; }
+.field input, .field select, .field textarea {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+  padding: 8px 10px; outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--green); }
+.field select option { background: var(--surface2); }
+.fields-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn { border: none; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600; padding: 8px 16px; cursor: pointer; transition: all 0.15s; }
+.btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.btn-primary { background: var(--green-dim); border: 1px solid var(--green); color: #fff; }
+.btn-primary:hover { background: var(--green); }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  color: var(--text); border-radius: 9px;
+  padding: 10px 16px; font-size: 0.82rem; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 999; transform: translateY(60px); opacity: 0;
+  transition: all 0.22s ease; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* Loading dots */
+.dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: db 1.2s ease-in-out infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes db { 0%,80%,100%{transform:scale(.5);opacity:.3} 40%{transform:scale(1);opacity:1} }
+
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── SETTINGS PAGE ── */
+.settings-view { display:none; flex:1; overflow-y:auto; padding:28px; flex-direction:column; gap:24px; }
+.settings-view.active { display:flex; }
+.settings-header { margin-bottom:4px; }
+.settings-header h2 { font-family:'Instrument Serif',serif; font-size:1.4rem; margin-bottom:4px; }
+.settings-header p { font-size:0.8rem; color:var(--muted); }
+.settings-section {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.settings-section-title {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  font-size:0.7rem; font-weight:700; letter-spacing:0.8px;
+  text-transform:uppercase; color:var(--muted);
+  display:flex; align-items:center; gap:8px;
+}
+.settings-row {
+  display:flex; align-items:center; gap:14px;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+}
+.settings-row:last-child { border-bottom:none; }
+.settings-row-label { flex:1; }
+.settings-row-label strong { font-size:0.85rem; display:block; margin-bottom:2px; }
+.settings-row-label span { font-size:0.75rem; color:var(--muted); line-height:1.4; }
+.settings-input {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:7px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:0.85rem;
+  padding:7px 10px; outline:none; width:220px;
+  transition:border-color 0.15s;
+}
+.settings-input:focus { border-color:var(--green); }
+.settings-input.wide { width:100%; }
+.settings-textarea {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:7px; color:var(--text);
+  font-family:'DM Mono',monospace; font-size:0.78rem;
+  padding:10px; outline:none; width:100%; resize:vertical;
+  transition:border-color 0.15s; min-height:100px; line-height:1.6;
+}
+.settings-textarea:focus { border-color:var(--green); }
+.settings-full { padding:14px 18px; border-bottom:1px solid var(--border); }
+.settings-full:last-child { border-bottom:none; }
+.settings-full label { font-size:0.7rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px; }
+.settings-save-bar {
+  position:sticky; bottom:0;
+  background:var(--surface); border-top:1px solid var(--border);
+  padding:14px 28px; display:flex; align-items:center; gap:10px;
+  justify-content:flex-end; margin:0 -28px -28px;
+}
+.price-row { display:grid; grid-template-columns:1fr 80px 80px; gap:10px; align-items:center; margin-bottom:8px; }
+.price-row label { font-size:0.8rem; color:var(--text); }
+.price-row input { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.82rem; padding:6px 8px; outline:none; text-align:right; }
+.price-row input:focus { border-color:var(--green); }
+.price-header { display:grid; grid-template-columns:1fr 80px 80px; gap:10px; margin-bottom:6px; }
+.price-header span { font-size:0.65rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); text-align:right; }
+.price-header span:first-child { text-align:left; }
+.nav-settings {
+  margin-top:auto; padding:12px 16px;
+  border-top:1px solid var(--border);
+}
+.nav-settings-btn {
+  width:100%; background:none; border:1px solid var(--border);
+  color:var(--muted); border-radius:8px; padding:9px;
+  font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:600;
+  cursor:pointer; transition:all 0.15s;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.nav-settings-btn:hover { border-color:var(--border2); color:var(--text); }
+.nav-settings-btn.active { background:var(--surface2); border-color:var(--border2); color:var(--text); }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="logo">
+        <div class="logo-mark">🧺</div>
+        <div class="logo-text">Wash Now <span>Follow-Up Manager</span></div>
+      </div>
+      <button class="btn-add" onclick="openModal()">+ Nova Lead</button>
+      <button class="btn-add" onclick="importCSV()" style="margin-top:6px;background:var(--surface2);border-color:var(--border2);color:var(--muted)">📥 Importar CSV da Sheet</button>
+    </div>
+    <div class="sidebar-filters">
+      <button class="filter-btn active" onclick="setFilter('all',this)">Todos</button>
+      <button class="filter-btn" onclick="setFilter('pending',this)">Pendentes</button>
+      <button class="filter-btn" onclick="setFilter('urgent',this)">Urgentes</button>
+      <button class="filter-btn" onclick="setFilter('closed',this)">Fechados</button>
+    </div>
+    <div class="lead-list" id="leadList"></div>
+    <div class="nav-settings">
+      <button class="nav-settings-btn" id="settingsNavBtn" onclick="toggleSettings()">⚙️ Configurações</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainPanel">
+    <div class="empty-state">
+      <div class="big">🤝</div>
+      <p>Seleciona uma lead para ver o plano de follow-up<br>ou cria uma nova lead para começar.</p>
+      <p style="margin-top:12px;font-size:0.75rem;color:var(--muted2)">
+        🤖 Claude trata das mensagens escritas<br>
+        🟡 Tu tratas das chamadas e visitas
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- SETTINGS PANEL -->
+<div class="settings-view" id="settingsPanel">
+  <div class="settings-header">
+    <h2>⚙️ Configurações</h2>
+    <p>Altera preços, mensagens e dados da empresa sem tocar em código.</p>
+  </div>
+
+  <!-- EMPRESA -->
+  <div class="settings-section">
+    <div class="settings-section-title">🏢 Dados da Empresa</div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>Nome</strong><span>Aparece nas assinaturas dos emails</span></div>
+      <input class="settings-input" id="cfg-nome-empresa" placeholder="Wash Now">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>Telefone</strong><span>Número WhatsApp e assinatura</span></div>
+      <input class="settings-input" id="cfg-telefone" placeholder="+352 691 933 095">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>Email de contacto</strong><span>Email para respostas das leads</span></div>
+      <input class="settings-input" id="cfg-email" placeholder="diogocerqueira@washnow.lu">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>Morada</strong><span>Aparece no rodapé dos emails</span></div>
+      <input class="settings-input" id="cfg-morada" placeholder="15, rue Dr. Klein — L-9054 Ettelbruck">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>Nome do responsável</strong><span>Assina os emails</span></div>
+      <input class="settings-input" id="cfg-responsavel" placeholder="Diogo Cerqueira">
+    </div>
+  </div>
+
+  <!-- PREÇOS -->
+  <div class="settings-section">
+    <div class="settings-section-title">💶 Preços & TVA</div>
+    <div style="padding:14px 18px">
+      <div class="price-header">
+        <span>Serviço</span>
+        <span>€/h HT</span>
+        <span>Após -5%</span>
+      </div>
+      <div class="price-row">
+        <label>Nettoyage régulier</label>
+        <input id="cfg-p-regulier" type="number" step="0.01" value="29.50" oninput="updateAfterDiscount(this,'cfg-d-regulier')">
+        <input id="cfg-d-regulier" readonly style="opacity:0.5">
+      </div>
+      <div class="price-row">
+        <label>Nettoyage bi-semaine</label>
+        <input id="cfg-p-bisemaine" type="number" step="0.01" value="30.00" oninput="updateAfterDiscount(this,'cfg-d-bisemaine')">
+        <input id="cfg-d-bisemaine" readonly style="opacity:0.5">
+      </div>
+      <div class="price-row">
+        <label>Repassage</label>
+        <input id="cfg-p-repassage" type="number" step="0.01" value="27.00" oninput="updateAfterDiscount(this,'cfg-d-repassage')">
+        <input id="cfg-d-repassage" readonly style="opacity:0.5">
+      </div>
+      <div class="price-row">
+        <label>Jardinage</label>
+        <input id="cfg-p-jardinage" type="number" step="0.01" value="28.00" oninput="updateAfterDiscount(this,'cfg-d-jardinage')">
+        <input id="cfg-d-jardinage" readonly style="opacity:0.5">
+      </div>
+      <div class="price-row">
+        <label>Nettoyage de bureaux</label>
+        <input id="cfg-p-bureaux" type="number" step="0.01" value="28.50" oninput="updateAfterDiscount(this,'cfg-d-bureaux')">
+        <input id="cfg-d-bureaux" readonly style="opacity:0.5">
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="price-row" style="grid-template-columns:1fr 60px;gap:8px">
+          <label>TVA Privados (%)</label>
+          <input id="cfg-tva-prive" type="number" value="8">
+        </div>
+        <div class="price-row" style="grid-template-columns:1fr 60px;gap:8px">
+          <label>TVA Empresas (%)</label>
+          <input id="cfg-tva-empresa" type="number" value="17">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="price-row" style="grid-template-columns:1fr 60px;gap:8px">
+          <label>Desconto novos clientes (%)</label>
+          <input id="cfg-desconto" type="number" value="5" oninput="recalcAllDiscounts()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENSAGENS -->
+  <div class="settings-section">
+    <div class="settings-section-title">✉️ Mensagens Automáticas</div>
+
+    <div class="settings-full">
+      <label>M1 — WhatsApp Inicial (enviado pela IA)</label>
+      <textarea class="settings-textarea" id="cfg-m1" rows="5">Bonjour [Prénom] 👋
+
+Merci pour votre demande chez Wash Now !
+Pour vous proposer un devis adapté, j'aimerais organiser une courte visite gratuite (~15 min).
+
+Seriez-vous disponible cette semaine ?
+
+Diogo — Wash Now
+📞 +352 691 933 095</textarea>
+    </div>
+
+    <div class="settings-full">
+      <label>M2 SMS — Se não atender (enviado pela IA)</label>
+      <textarea class="settings-textarea" id="cfg-m2sms" rows="4">Bonjour [Prénom], c'est Diogo de Wash Now.
+J'ai essayé de vous joindre suite à votre demande.
+N'hésitez pas à me rappeler ou m'écrire ici quand ça vous arrange 😊
+Diogo +352 691 933 095</textarea>
+    </div>
+
+    <div class="settings-full">
+      <label>M3 — WhatsApp Valor Acrescentado (dia 3)</label>
+      <textarea class="settings-textarea" id="cfg-m3" rows="5">Bonjour [Prénom],
+
+Je me permets de revenir vers vous — nous venons de terminer un nettoyage à [Zona] et le résultat était top 🏠✨
+
+Si votre projet est toujours d'actualité, je reste disponible pour un devis gratuit.
+
+Belle journée !
+Diogo — Wash Now</textarea>
+    </div>
+
+    <div class="settings-full">
+      <label>M5 — Última Tentativa (dia 14)</label>
+      <textarea class="settings-textarea" id="cfg-m5" rows="4">Bonjour [Prénom],
+
+Je me permets un dernier petit message 😊
+Si vous avez encore besoin d'un service de nettoyage, je reste disponible. Sinon, pas de souci — revenez quand vous le souhaitez !
+
+Diogo — Wash Now 📞 +352 691 933 095</textarea>
+    </div>
+
+    <div class="settings-full">
+      <label>Argumento diferenciador (aparece no email do orçamento)</label>
+      <textarea class="settings-textarea" id="cfg-argumento" rows="4">✅ Équipes formées, fiables et assurées
+✅ Présents au Luxembourg depuis 2021
+✅ Produits écologiques fournis
+✅ Flexibilité horaire selon vos besoins
+✅ Un interlocuteur unique — toujours Diogo</textarea>
+    </div>
+  </div>
+
+  <!-- INTEGRAÇÕES -->
+  <div class="settings-section">
+    <div class="settings-section-title">🔗 Integrações</div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>VosFactures — Token API</strong><span>Para criar devis automaticamente</span></div>
+      <input class="settings-input" id="cfg-vf-token" type="password" placeholder="u7p...">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>VosFactures — Subdomínio</strong><span>Ex: diogocerqueira635</span></div>
+      <input class="settings-input" id="cfg-vf-domain" placeholder="diogocerqueira635">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>WhatsApp Business</strong><span>Número sem + nem espaços</span></div>
+      <input class="settings-input" id="cfg-wa-num" placeholder="352691933095">
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="settings-section">
+    <div class="settings-section-title">🎯 Pipeline — Prazos</div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>M1 — WhatsApp inicial</strong><span>Dias após entrada da lead</span></div>
+      <input class="settings-input" id="cfg-day-m1" type="number" value="0" style="width:80px">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>M2 — Chamada + SMS</strong></div>
+      <input class="settings-input" id="cfg-day-m2" type="number" value="1" style="width:80px">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>M3 — WhatsApp valor</strong></div>
+      <input class="settings-input" id="cfg-day-m3" type="number" value="3" style="width:80px">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>M4 — Email recapitulação</strong></div>
+      <input class="settings-input" id="cfg-day-m4" type="number" value="7" style="width:80px">
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label"><strong>M5 — Última tentativa</strong></div>
+      <input class="settings-input" id="cfg-day-m5" type="number" value="14" style="width:80px">
+    </div>
+  </div>
+
+  <div class="settings-save-bar">
+    <span id="cfg-save-status" style="font-size:0.78rem;color:var(--muted)"></span>
+    <button class="btn btn-ghost" onclick="loadConfig()">↩ Repor</button>
+    <button class="btn btn-primary" onclick="saveConfig()">💾 Guardar Configurações</button>
+  </div>
+</div>
+
+<!-- MODAL NOVA LEAD -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Nova Lead</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fields-2">
+        <div class="field"><label>Primeiro Nome</label><input id="fPrenom" placeholder="Ex: Sophie"></div>
+        <div class="field"><label>Emoji / Ícone</label><input id="fIcon" value="👤" maxlength="2"></div>
+      </div>
+      <div class="field"><label>Sub-título</label><input id="fSub" placeholder="Ex: Expat · Kirchberg"></div>
+      <div class="fields-2">
+        <div class="field"><label>Serviço Pedido</label>
+          <select id="fService">
+            <option>Nettoyage régulier</option>
+            <option>Nettoyage en profondeur</option>
+            <option>Nettoyage de bureaux</option>
+            <option>Blanchisserie</option>
+            <option>Jardinage</option>
+            <option>Garde d'animaux</option>
+          </select>
+        </div>
+        <div class="field"><label>Localidade</label><input id="fVille" placeholder="Ex: Kirchberg"></div>
+      </div>
+      <div class="fields-2">
+        <div class="field"><label>Tipo</label>
+          <select id="fType">
+            <option>Privado</option>
+            <option>Empresa</option>
+            <option>Airbnb</option>
+          </select>
+        </div>
+        <div class="field"><label>Origem</label>
+          <select id="fSource">
+            <option>Meta / Facebook Ads</option>
+            <option>Google</option>
+            <option>Referência</option>
+            <option>LinkedIn</option>
+            <option>Airbnb</option>
+            <option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Notas (opcional)</label><textarea id="fNotes" placeholder="Ex: Casa 120m², 3 quartos, semana disponível..." rows="2"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveLead()">🎯 Criar Lead</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const STEPS = [
+  { id:'m1',    label:'M1 WhatsApp',  who:'ai',  channel:'WhatsApp', day:0,  icon:'📱' },
+  { id:'m2call',label:'M2 Chamada',   who:'you', channel:'Telefone', day:1,  icon:'📞' },
+  { id:'m2sms', label:'M2 SMS',       who:'ai',  channel:'SMS',      day:1,  icon:'💬' },
+  { id:'m3',    label:'M3 WhatsApp',  who:'ai',  channel:'WhatsApp', day:3,  icon:'📱' },
+  { id:'m4',    label:'M4 E-mail',    who:'ai',  channel:'E-mail',   day:7,  icon:'✉️' },
+  { id:'m5',    label:'M5 WhatsApp',  who:'ai',  channel:'WhatsApp', day:14, icon:'📱' },
+];
+
+// YOU steps per stage
+const YOU_STEPS = {
+  m2call: [
+    "Liga para a lead — usa o script: <i>« Bonjour [Prénom], c'est Diogo de Wash Now... »</i>",
+    "Se atender → qualifica (tamanho, tipo, data) → agenda visita gratuita",
+    "Se não atender → <b>a app envia o SMS automaticamente (M2 SMS)</b>",
+  ],
+  visit: [
+    "Faz a visita presencial gratuita (~15 minutos)",
+    "Avalia área, apresenta serviços, dá orçamento no local",
+    "Fecha contrato ou define próximo passo",
+  ],
 };
 
-// Preços HT (antes desconto 5%)
-const PRICES = {
-  regulier:   29.50,
-  bi_semaine: 30.00,
-  repassage:  27.00,
-  jardinage:  28.00,
-  bureaux:    28.50,
-};
+let leads = [];
+let currentId = null;
+let filterMode = 'all';
 
-// TVA
-const TVA_PRIVE   = 8;
-const TVA_EMPRESA = 17;
+const KEY = 'washnow_fu_v1';
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(leads)); } catch(e){} }
+function hydrate() {
+  try { const d = localStorage.getItem(KEY); if(d) leads = JSON.parse(d); } catch(e){}
+  if (!leads.length) seedDemo();
+}
 
-// ── TRIGGER PRINCIPAL — corre quando há nova linha ────────────────────────────
-function onNovaLead(e) {
+function seedDemo() {
+  leads = [
+    mkLead('Sophie','👩‍💼','Expat · EU Commission · Kirchberg','Nettoyage régulier','Kirchberg','Privado','Meta / Facebook Ads','Chamada de 3 quartos, disponível semana'),
+    mkLead('Hôtel Belle-Vue','🏨','Hotel 4★ · Avenue Marie-Thérèse','Nettoyage de bureaux','Luxembourg','Empresa','Google','Gestora: Mme. Fontaine'),
+    mkLead('Marcus','👨‍💼','Finance Dir. · Belair','Nettoyage en profondeur','Belair','Privado','Referência','Referido pela Natalia'),
+  ];
+  // Advance Sophie to m3
+  leads[0].currentStep = 2;
+  leads[0].history.push({ icon:'✅', text:'M1 WhatsApp enviado pela IA', who:'ai', date: fmt(new Date(Date.now()-2*86400000)) });
+  leads[0].history.push({ icon:'📞', text:'Chamada M2 feita por Diogo — não atendeu', who:'you', date: fmt(new Date(Date.now()-86400000)) });
+  leads[0].history.push({ icon:'✅', text:'SMS M2 enviado pela IA', who:'ai', date: fmt(new Date(Date.now()-86400000)) });
+  persist();
+}
+
+function mkLead(prenom, icon, sub, service, ville, type, source, notes='') {
+  return {
+    id: uid(), prenom, icon, sub, service, ville, type, source, notes,
+    currentStep: 0,
+    archived: false,
+    history: [{ icon:'🎯', text:`Lead criada — origem: ${source}`, who:'system', date: fmt(new Date()) }],
+    _msgCache: {},
+  };
+}
+
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function fmt(d) { return d.toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+
+// ── WEBHOOK RECEIVER ─────────────────────────────────────────────────────────
+function checkWebhookParam() {
   try {
-    const ss    = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) return;
-    const lastRow = sheet.getLastRow();
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('lead');
+    if (!raw) return;
+    const data = JSON.parse(decodeURIComponent(raw));
+    injectLead(data);
+    window.history.replaceState({}, '', window.location.pathname);
+  } catch(e) {}
+}
 
-    const jaProcessada = sheet.getRange(lastRow, COL.PROCESSADA).getValue();
-    if (jaProcessada === "✅") return;
+const bc = new BroadcastChannel('washnow_leads');
+bc.onmessage = (e) => { if (e.data?.type === 'new_lead') injectLead(e.data.lead); };
 
-    const nome       = sheet.getRange(lastRow, COL.NOME).getValue();
-    const telefone   = String(sheet.getRange(lastRow, COL.TELEFONE).getValue());
-    const email      = sheet.getRange(lastRow, COL.EMAIL).getValue();
-    const servico    = sheet.getRange(lastRow, COL.SERVICO).getValue();
-    const frequencia = sheet.getRange(lastRow, COL.FREQUENCIA).getValue();
-    const zona       = sheet.getRange(lastRow, COL.ZONA).getValue();
-    const superficie = sheet.getRange(lastRow, COL.SUPERFICIE).getValue();
+function injectLead(data) {
+  const dup = leads.find(l => (data.email && l.email === data.email) || (data.phone && l.phone === data.phone));
+  if (dup) { showToast('⚠️ Lead ' + (data.prenom||data.nome) + ' já existe'); return; }
+  const l = mkLead(
+    data.prenom || data.nome || 'Lead',
+    data.icon || '👤',
+    data.sub || ((data.type||'Privado') + ' · ' + (data.ville||data.cidade||'Luxembourg')),
+    data.service || data.servico || 'Nettoyage régulier',
+    data.ville || data.cidade || 'Luxembourg',
+    data.type  || data.tipo || 'Privado',
+    data.source || data.origem || 'Meta Ads',
+    data.notes || data.notas || '',
+  );
+  l.email = data.email || '';
+  l.phone = data.phone || data.telefone || '';
+  leads.unshift(l);
+  persist(); renderSidebar();
+  showNewLeadBanner(l);
+}
 
-    if (!nome) return;
+function showNewLeadBanner(l) {
+  const existing = document.getElementById('newLeadBanner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'newLeadBanner';
+  banner.style.cssText = 'position:fixed;top:16px;right:16px;z-index:500;background:var(--green-dim);border:1px solid var(--green);border-radius:12px;padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px;';
+  banner.innerHTML = '<div style="font-weight:700;font-size:0.88rem;color:#fff;margin-bottom:6px">🎯 Nova lead da Sheet!</div>' +
+    '<div style="font-size:0.8rem;color:rgba(255,255,255,0.8);margin-bottom:10px">' + l.prenom + ' · ' + l.service + '</div>' +
+    '<button onclick="selectLead(\'' + l.id + '\');document.getElementById(\'newLeadBanner\').remove()" style="background:var(--green);border:none;color:#fff;border-radius:7px;padding:6px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;width:100%">Abrir Lead →</button>' +
+    '<button onclick="document.getElementById(\'newLeadBanner\').remove()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:0.75rem;cursor:pointer;margin-top:6px;width:100%">Fechar</button>';
+  document.body.appendChild(banner);
+  setTimeout(() => { const b = document.getElementById('newLeadBanner'); if(b) b.remove(); }, 12000);
+}
 
-    const prenom = nome.split(" ")[0];
-
-    // ── MAPEAMENTO POR FREQUÊNCIA (Coluna E) ──────────────────────────────────
-    // "Une fois par semaine"   → Nettoyage régulier → email qualif (perguntar repassage + m²)
-    // "Deux fois par mois"     → Nettoyage bi-semaine → email qualif (perguntar repassage + m²)
-    // "Ponctuel / À définir"   → Nettoyage en profondeur → propor visita directamente
-    // "Une fois par mois"      → Incerto → email qualif especial (perceber se é fundo ou 1x/mês)
-    const freq = (frequencia || "").toLowerCase().trim();
-    let tipoServico, fluxo;
-
-    if (freq.includes("semaine") && freq.includes("fois par s")) {
-      tipoServico = "regulier";
-      fluxo = "qualif_regular";
-    } else if (freq.includes("deux") || freq.includes("2 fois") || freq.includes("bi")) {
-      tipoServico = "bi_semaine";
-      fluxo = "qualif_bisemaine";
-    } else if (freq.includes("ponctuel") || freq.includes("définir") || freq.includes("definir")) {
-      tipoServico = "profondeur";
-      fluxo = "visita";
-    } else if (freq.includes("mois")) {
-      tipoServico = "incerto";
-      fluxo = "qualif_mois";
-    } else {
-      // Fallback — frequência não reconhecida, tratar como regular
-      tipoServico = "regulier";
-      fluxo = "qualif_regular";
+// ── CSV IMPORT ────────────────────────────────────────────────────────────────
+function importCSV() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.csv';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/["\s]/g,''));
+    let imported = 0;
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g,''));
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = vals[idx] || ''; });
+      injectLead({
+        prenom:  row['nome'] || row['prenom'] || row['name'] || 'Lead',
+        email:   row['email'] || '',
+        phone:   row['telefone'] || row['phone'] || row['tel'] || '',
+        service: row['servicopedido'] || row['service'] || row['servico'] || 'Nettoyage régulier',
+        ville:   row['cidade'] || row['ville'] || row['city'] || 'Luxembourg',
+        type:    row['tipo'] || row['type'] || 'Privado',
+        source:  row['origem'] || row['source'] || 'Meta Ads',
+        notes:   row['regularidade'] || row['notes'] || row['notas'] || '',
+        sub:     '',
+      });
+      imported++;
     }
+    showToast('✅ ' + imported + ' leads importadas do CSV');
+  };
+  input.click();
+}
 
-    // Marcar como processada
-    sheet.getRange(lastRow, COL.PROCESSADA).setValue("✅");
-    sheet.getRange(lastRow, COL.PROCESSADA).setBackground("#c6efce");
+// ── FILTER ────────────────────────────────────────────────────────────────────
+function setFilter(mode, el) {
+  filterMode = mode;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderSidebar();
+}
 
-    // Link CRM
-    const lead = {
-      prenom, email, phone: telefone,
-      service: servico, ville: zona || "Luxembourg",
-      type: "Privado", source: "Meta Ads",
-      notes: "Freq: " + frequencia + " | Sup: " + superficie + " | Tipo: " + tipoServico,
-      icon: "👤", sub: zona || "Luxembourg",
-    };
-    const linkCRM = APP_URL + "?lead=" + encodeURIComponent(JSON.stringify(lead));
-    sheet.getRange(lastRow, COL.LINK_CRM).setValue(linkCRM);
-    sheet.getRange(lastRow, COL.QUALIF).setValue(fluxo);
+function filteredLeads() {
+  if (filterMode === 'pending')  return leads.filter(l=>!l.archived && l.currentStep < STEPS.length);
+  if (filterMode === 'urgent')   return leads.filter(l=>!l.archived && l.currentStep === 0);
+  if (filterMode === 'closed')   return leads.filter(l=>l.archived || l.currentStep >= STEPS.length);
+  return leads;
+}
 
-    // Email alerta para Diogo com tipo detectado
-    enviarAlertaDiogo(prenom, nome, telefone, email, servico, frequencia, zona, superficie, linkCRM, tipoServico);
+// ── RENDER SIDEBAR ────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('leadList');
+  const fl = filteredLeads();
+  if (!fl.length) { list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.78rem">Sem leads nesta categoria</div>`; return; }
+  list.innerHTML = fl.map(l => {
+    const step = STEPS[l.currentStep];
+    const urgent = l.currentStep === 0 && !l.archived;
+    const done = l.currentStep >= STEPS.length || l.archived;
+    const badgeBg  = done ? 'background:var(--green-lt);color:var(--green)' : urgent ? 'background:var(--red-lt);color:var(--red)' : 'background:var(--surface3);color:var(--muted)';
+    const badgeTxt = done ? 'Fechado' : urgent ? 'Urgente' : step?.label || '—';
+    return `<div class="lead-item ${l.id===currentId?'active':''}" onclick="selectLead('${l.id}')">
+      ${urgent?'<div class="urgent-dot"></div>':''}
+      <div class="lead-item-top">
+        <div class="lead-item-avatar">${l.icon}</div>
+        <div class="lead-item-name">${l.prenom}</div>
+        <span class="lead-item-badge" style="${badgeBg}">${badgeTxt}</span>
+      </div>
+      <div class="lead-item-sub">${l.sub}</div>
+    </div>`;
+  }).join('');
+}
 
-    // Routing por fluxo
-    if (fluxo === "visita") {
-      // Ponctuel / À définir → Nettoyage en profondeur → visita directamente
-      enviarEmailVisita(prenom, email, telefone, servico, zona);
-    } else if (fluxo === "qualif_mois") {
-      // Une fois par mois → perceber se é profundo ou mesmo 1x/mês
-      enviarEmailQualifMois(prenom, email, servico, zona, superficie);
-    } else {
-      // Une fois par semaine ou Deux fois par mois → qualificação standard
-      enviarEmailQualificacao(prenom, email, servico, zona, superficie, frequencia, tipoServico, lastRow);
-    }
+// ── SELECT LEAD ───────────────────────────────────────────────────────────────
+function selectLead(id) {
+  currentId = id;
+  renderSidebar();
+  renderMain();
+}
 
-    Logger.log("✅ Lead processada: " + nome);
+// ── RENDER MAIN ───────────────────────────────────────────────────────────────
+function renderMain() {
+  const l = leads.find(x=>x.id===currentId);
+  if (!l) return;
+  const main = document.getElementById('mainPanel');
 
-  } catch(err) {
-    Logger.log("Erro onNovaLead: " + err);
-    MailApp.sendEmail(EMAIL_DIOGO, "⚠️ Erro CRM Wash Now", err.toString());
+  const done = l.currentStep >= STEPS.length;
+  const step = STEPS[l.currentStep];
+
+  // Pipeline bar
+  const pipeHtml = STEPS.map((s,i) => {
+    const cls = i < l.currentStep ? 'done' : i === l.currentStep ? 'current' : '';
+    return `<div class="step-item ${cls}">
+      <div class="step-num">${i < l.currentStep ? '✓' : i+1}</div>
+      <div class="step-label">${s.label}</div>
+      <div class="step-who ${s.who==='ai'?'who-ai':'who-you'}">${s.who==='ai'?'🤖 Claude':'🟡 Tu'}</div>
+    </div>`;
+  }).join('');
+
+  // Next action
+  let actionHtml = '';
+  if (done || l.archived) {
+    actionHtml = `
+      <div class="next-action-card">
+        <div class="nac-header">
+          <div class="nac-header-icon">🏆</div>
+          <div class="nac-header-title">Sequência Concluída</div>
+        </div>
+        <div class="nac-body" style="color:var(--muted);font-size:0.85rem;line-height:1.6">
+          ${l.archived ? 'Lead arquivada após 5 tentativas sem resposta.' : 'Todos os passos da sequência foram concluídos.'}<br>
+          <button class="done-btn" style="margin-top:12px" onclick="reopenLead('${l.id}')">🔄 Reabrir sequência</button>
+        </div>
+      </div>`;
+  } else if (step.who === 'ai') {
+    actionHtml = `
+      <div class="next-action-card">
+        <div class="nac-header">
+          <div class="nac-header-icon">${step.icon}</div>
+          <div class="nac-header-title">${step.label} — Dia ${step.day}</div>
+          <span class="nac-header-who who-badge-ai">🤖 Claude envia</span>
+        </div>
+        <div class="nac-body">
+          <div class="msg-preview">
+            <div class="msg-channel">${step.icon} ${step.channel} &nbsp;·&nbsp; Para: <b>${l.prenom}</b></div>
+            <div class="msg-body loading" id="msgBody">
+              <span class="dots"><span></span><span></span><span></span></span> A gerar mensagem personalizada...
+            </div>
+          </div>
+          <div class="msg-actions">
+            <button class="msg-btn primary" onclick="markSent('${l.id}')">✅ Mensagem Enviada</button>
+            <button class="msg-btn regen" onclick="regenMsg('${l.id}')">🔄 Regenerar</button>
+            <button class="msg-btn" onclick="copyMsg()">📋 Copiar</button>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    // YOU step
+    const youSteps = YOU_STEPS[step.id] || [`Completa a tarefa: <b>${step.label}</b>`];
+    actionHtml = `
+      <div class="you-card">
+        <div class="you-card-title">🟡 A tua vez — ${step.label}</div>
+        <div class="you-card-steps">
+          ${youSteps.map((s,i)=>`
+            <div class="you-step">
+              <div class="you-step-num">${i+1}</div>
+              <div>${s}</div>
+            </div>`).join('')}
+        </div>
+        <button class="done-btn" onclick="markDone('${l.id}')">✅ Feito — avançar para próximo passo</button>
+      </div>`;
+  }
+
+  // History
+  const histHtml = l.history.slice().reverse().map(h => {
+    const whoColor = h.who==='ai' ? 'var(--green)' : h.who==='you' ? 'var(--gold)' : 'var(--muted)';
+    const whoLabel = h.who==='ai' ? '🤖 Claude' : h.who==='you' ? '🟡 Diogo' : '⚙️ Sistema';
+    return `<div class="h-entry">
+      <div class="h-dot">${h.icon}</div>
+      <div class="h-content">
+        <div class="h-text">${h.text}</div>
+        <div class="h-meta">
+          <span class="h-who" style="color:${whoColor}">${whoLabel}</span>
+          &nbsp;·&nbsp; ${h.date}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  main.innerHTML = `
+    <div class="main-header">
+      <div class="main-avatar">${l.icon}</div>
+      <div class="main-info">
+        <div class="main-name">${l.prenom}</div>
+        <div class="main-sub">${l.sub} &nbsp;·&nbsp; ${l.service} &nbsp;·&nbsp; ${l.ville}</div>
+      </div>
+      <div class="main-actions">
+        ${!done && !l.archived ? `<button class="action-btn danger" onclick="archiveLead('${l.id}')">📦 Arquivar</button>` : ''}
+        <button class="action-btn" onclick="openEditModal('${l.id}')">✏️ Editar</button>
+      </div>
+    </div>
+    <div class="pipeline-bar">${pipeHtml}</div>
+    <div class="content">
+      ${actionHtml}
+      <div class="history-card">
+        <div class="hc-title">Histórico</div>
+        <div class="hc-body">${histHtml || '<div style="padding:14px 18px;color:var(--muted);font-size:0.78rem">Sem histórico ainda.</div>'}</div>
+      </div>
+    </div>`;
+
+  // Generate AI message
+  if (step && step.who === 'ai') {
+    generateMessage(l);
   }
 }
 
-// ── EMAIL ALERTA PARA DIOGO ───────────────────────────────────────────────────
-function enviarAlertaDiogo(prenom, nome, telefone, email, servico, frequencia, zona, superficie, linkCRM, tipoServico) {
-  const waMensagem = encodeURIComponent(
-    "Bonjour " + prenom + " 👋\n\n" +
-    "Merci pour votre demande chez Wash Now !\n" +
-    "Je reviens vers vous très rapidement.\n\n" +
-    "Diogo — Wash Now\n📞 +352 691 933 095"
-  );
-  const waLink = "https://wa.me/" + WHATSAPP_NUM + "?text=" + waMensagem;
+// ── GENERATE MESSAGE ──────────────────────────────────────────────────────────
+async function generateMessage(l, force=false) {
+  const step = STEPS[l.currentStep];
+  if (!step || step.who !== 'ai') return;
+  const cacheKey = `${l.id}_${l.currentStep}`;
+  const el = document.getElementById('msgBody');
+  if (!el) return;
 
-  MailApp.sendEmail({
-    to: EMAIL_DIOGO,
-    subject: "🎯 Nova Lead — " + nome + " (" + (zona||"Lux") + ")",
-    htmlBody:
-      "<h2 style='color:#1a6b4a'>🎯 Nova Lead Wash Now</h2>" +
-      "<table style='border-collapse:collapse;width:100%'>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Nome</td><td style='padding:8px'>" + nome + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Email</td><td style='padding:8px'>" + email + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Telefone</td><td style='padding:8px'>" + telefone + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Serviço</td><td style='padding:8px'>" + servico + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Frequência</td><td style='padding:8px'>" + frequencia + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Zona</td><td style='padding:8px'>" + zona + "</td></tr>" +
-      "<tr><td style='padding:8px;background:#f4f3ef;font-weight:bold'>Superfície</td><td style='padding:8px'>" + superficie + "</td></tr>" +
-      "</table><br>" +
-      "<p style='background:#fff3cd;padding:12px;border-radius:8px'>⏱️ <strong>Contacta em menos de 2 horas!</strong></p>" +
-      "<p style='background:#e8f4ef;padding:10px 12px;border-radius:8px'>🎯 <strong>Tipo detectado:</strong> " + (tipoServico==="regulier"?"✅ Regular (1x/semana)":tipoServico==="bi_semaine"?"✅ Bi-semaine (2x/mês)":tipoServico==="profondeur"?"🏠 Profundeur → visita directa":"❓ 1x/mês → aguardar qualificação") + "</p>" +
-      "<p><a href='" + waLink + "' style='background:#25D366;color:white;padding:10px 20px;border-radius:8px;text-decoration:none'>📱 Enviar WhatsApp agora</a></p>" +
-      "<p><a href='" + linkCRM + "'>🔗 Abrir no CRM</a></p>"
+  if (!force && l._msgCache[cacheKey]) {
+    el.classList.remove('loading');
+    el.textContent = l._msgCache[cacheKey];
+    return;
+  }
+
+  el.classList.add('loading');
+  el.innerHTML = `<span class="dots"><span></span><span></span><span></span></span> A gerar ${step.channel} personalizado para ${l.prenom}...`;
+
+  const prompt = buildPrompt(l, step);
+  try {
+    const raw = await callAPI(prompt);
+    const msg = raw.trim();
+    l._msgCache[cacheKey] = msg;
+    if (el && document.getElementById('msgBody')) {
+      el.classList.remove('loading');
+      el.textContent = msg;
+    }
+  } catch(e) {
+    if (el) { el.classList.remove('loading'); el.textContent = fallbackMsg(l, step); }
+  }
+}
+
+function buildPrompt(l, step) {
+  const SEASON = getSeason();
+  const prompts = {
+    m1: `Tu es Diogo, fondateur de Wash Now Luxembourg. Écris un message WhatsApp COURT et PERSONNALISÉ pour ${l.prenom} qui a demandé un devis pour "${l.service}" à ${l.ville}.
+${l.notes ? `Contexte supplémentaire: ${l.notes}` : ''}
+Type de client: ${l.type}.
+
+Règles strictes:
+- Maximum 80 mots
+- Commence par "Bonjour ${l.prenom} 👋"
+- Propose une visite gratuite de 15 minutes
+- Termine par "Diogo — Wash Now\n📞 +352 691 933 095"
+- Ton chaleureux, pas commercial
+- Écris SEULEMENT le message, rien d'autre`,
+
+    m2sms: `Tu es Diogo de Wash Now Luxembourg. Écris un SMS TRÈS COURT pour ${l.prenom} (tu viens d'essayer de l'appeler, pas de réponse). Service: "${l.service}".
+
+Règles:
+- Maximum 40 mots
+- Commence par "Bonjour ${l.prenom}"
+- Mentionne que tu as essayé de joindre
+- Invite à rappeler ou écrire sur WhatsApp (+352 691 933 095)
+- Signe: Diogo — Wash Now
+- Écris SEULEMENT le message`,
+
+    m3: `Tu es Diogo de Wash Now Luxembourg. Écris un WhatsApp de relance SANS PRESSION pour ${l.prenom} (3ème tentative, service: "${l.service}", ville: ${l.ville}).
+Saison actuelle: ${SEASON}.
+
+Règles:
+- Maximum 70 mots
+- Approche valeur ajoutée (pas "avez-vous réfléchi?")
+- ${SEASON === 'printemps' ? 'Utilise le thème du printemps / grand nettoyage saisonnier' : SEASON === 'été' ? 'Utilise le thème des vacances d\'été' : SEASON === 'noël' ? 'Utilise le thème de Noël / fêtes' : 'Mentionne un chantier récent réussi dans la région'}
+- Écris SEULEMENT le message`,
+
+    m4: `Tu es Diogo de Wash Now Luxembourg. Écris un EMAIL complet de récapitulation pour ${l.prenom}, demande de "${l.service}" à ${l.ville}.
+${l.notes ? `Contexte: ${l.notes}` : ''}
+
+Inclus:
+- Objet: "Votre demande de ${l.service} — Wash Now"
+- Corps: rappel de la demande, liste des services (nettoyage régulier/profond, bureaux, vitres, jardinage)
+- Mention que les équipes sont professionnelles et assurées
+- Invitation à visiter gratuitement ou répondre sur WhatsApp +352 691 933 095
+- Signature complète: Diogo Cerqueira / Wash Now / 15 rue Dr. Klein L-9054 Ettelbruck
+
+Format: OBJET: [ligne]\nCORPS: [texte]`,
+
+    m5: `Tu es Diogo de Wash Now Luxembourg. Écris un DERNIER message WhatsApp (5ème et dernière tentative) pour ${l.prenom}. Service: "${l.service}".
+
+Règles:
+- Maximum 50 mots
+- Ton très léger, pas de pression
+- Laisse la porte ouverte ("revenez quand vous voulez")
+- Indique que c'est le dernier message
+- Signe: Diogo — Wash Now 📞 +352 691 933 095
+- Écris SEULEMENT le message`,
+  };
+
+  return prompts[step.id] || `Écris un message de suivi pour ${l.prenom} concernant "${l.service}". Signe: Diogo — Wash Now +352 691 933 095`;
+}
+
+function getSeason() {
+  const m = new Date().getMonth();
+  if (m >= 2 && m <= 4) return 'printemps';
+  if (m >= 5 && m <= 7) return 'été';
+  if (m === 11) return 'noël';
+  return 'automne';
+}
+
+function fallbackMsg(l, step) {
+  const fb = {
+    m1: `Bonjour ${l.prenom} 👋\n\nMerci pour votre demande de devis chez Wash Now.\nJ'aimerais organiser une courte visite gratuite (~15 min) pour bien évaluer vos besoins.\n\nSeriez-vous disponible cette semaine ?\n\nDiogo — Wash Now\n📞 +352 691 933 095`,
+    m2sms: `Bonjour ${l.prenom}, c'est Diogo de Wash Now. J'ai essayé de vous joindre. N'hésitez pas à me rappeler ou m'écrire ici 😊\nDiogo +352 691 933 095`,
+    m3: `Bonjour ${l.prenom},\n\nJe me permets de revenir vers vous. Si votre projet de ${l.service} est toujours d'actualité, je reste disponible pour un devis gratuit.\n\nBelle journée !\nDiogo — Wash Now`,
+    m4: `OBJET: Votre demande de ${l.service} — Wash Now\n\nCORPS:\nBonjour ${l.prenom},\n\nJe reviens vers vous suite à votre demande. Chez Wash Now nous proposons nettoyage régulier, profond, bureaux et jardinage — équipes professionnelles et assurées.\n\nDisponible pour une visite gratuite. Répondez ici ou WhatsApp +352 691 933 095\n\nDiogo Cerqueira — Wash Now\n📍 15 rue Dr. Klein L-9054 Ettelbruck`,
+    m5: `Bonjour ${l.prenom}, je me permets un dernier petit message 😊 Si vous avez besoin de nettoyage, je reste disponible. Sinon, pas de souci — revenez quand vous le souhaitez !\nDiogo — Wash Now 📞 +352 691 933 095`,
+  };
+  return fb[step.id] || `Message de suivi pour ${l.prenom}.\n\nDiogo — Wash Now\n📞 +352 691 933 095`;
+}
+
+async function callAPI(prompt, attempt=1) {
+  const models = ['claude-haiku-4-5-20251001','claude-sonnet-4-6'];
+  const model = models[(attempt-1) % models.length];
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model, max_tokens: 500, messages: [{ role:'user', content: prompt }] })
+  });
+  const data = await resp.json();
+  if (data.error) {
+    const msg = data.error.message || '';
+    if (msg.toLowerCase().includes('overload') && attempt < 4) { await sleep(2000*attempt); return callAPI(prompt, attempt+1); }
+    throw new Error(msg);
+  }
+  return data.content?.map(b=>b.text||'').join('')||'';
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function markSent(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  const step = STEPS[l.currentStep];
+  const msg = document.getElementById('msgBody')?.textContent || '';
+  l.history.push({
+    icon: step.icon,
+    text: `${step.label} enviado pela IA${msg ? ` — <code>${msg.slice(0,60)}${msg.length>60?'...':''}</code>` : ''}`,
+    who: 'ai', date: fmt(new Date())
+  });
+  l.currentStep++;
+  // Auto-archive after M5
+  if (l.currentStep >= STEPS.length) {
+    l.history.push({ icon:'📦', text:'Sequência completa — lead arquivada automaticamente', who:'system', date: fmt(new Date()) });
+    l.archived = true;
+  }
+  persist(); renderSidebar(); renderMain();
+  showToast(`✅ ${step.label} marcado como enviado`);
+}
+
+function markDone(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  const step = STEPS[l.currentStep];
+  l.history.push({ icon:'✅', text:`${step.label} concluído por Diogo`, who:'you', date: fmt(new Date()) });
+  l.currentStep++;
+  persist(); renderSidebar(); renderMain();
+  showToast(`🟡 ${step.label} marcado como feito`);
+}
+
+function regenMsg(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  const cacheKey = `${l.id}_${l.currentStep}`;
+  delete l._msgCache[cacheKey];
+  generateMessage(l, true);
+}
+
+function copyMsg() {
+  const text = document.getElementById('msgBody')?.textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Copiado!'));
+}
+
+function archiveLead(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  if (!confirm(`Arquivar lead de ${l.prenom}?`)) return;
+  l.archived = true;
+  l.history.push({ icon:'📦', text:'Lead arquivada manualmente', who:'you', date: fmt(new Date()) });
+  persist(); renderSidebar(); renderMain();
+  showToast('Lead arquivada');
+}
+
+function reopenLead(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  l.archived = false;
+  l.currentStep = Math.max(0, l.currentStep - 1);
+  l.history.push({ icon:'🔄', text:'Sequência reaberta', who:'you', date: fmt(new Date()) });
+  persist(); renderSidebar(); renderMain();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('fPrenom').value = '';
+  document.getElementById('fIcon').value = '👤';
+  document.getElementById('fSub').value = '';
+  document.getElementById('fVille').value = '';
+  document.getElementById('fNotes').value = '';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('fPrenom').focus(), 100);
+}
+
+function openEditModal(id) {
+  // Simple edit — reuse add modal pre-filled
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  document.getElementById('fPrenom').value = l.prenom;
+  document.getElementById('fIcon').value = l.icon;
+  document.getElementById('fSub').value = l.sub;
+  document.getElementById('fVille').value = l.ville;
+  document.getElementById('fNotes').value = l.notes || '';
+  document.getElementById('fService').value = l.service;
+  document.getElementById('fType').value = l.type;
+  document.getElementById('fSource').value = l.source;
+  // Swap save button
+  const saveBtn = document.querySelector('.modal-foot .btn-primary');
+  saveBtn.textContent = '💾 Guardar Alterações';
+  saveBtn.onclick = () => saveEdit(id);
+  document.getElementById('overlay').classList.add('open');
+}
+
+function saveEdit(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  l.prenom  = document.getElementById('fPrenom').value.trim() || l.prenom;
+  l.icon    = document.getElementById('fIcon').value || l.icon;
+  l.sub     = document.getElementById('fSub').value;
+  l.ville   = document.getElementById('fVille').value;
+  l.notes   = document.getElementById('fNotes').value;
+  l.service = document.getElementById('fService').value;
+  l.type    = document.getElementById('fType').value;
+  l.source  = document.getElementById('fSource').value;
+  l._msgCache = {};
+  persist(); closeModal(); renderSidebar(); if (currentId===id) renderMain();
+  // Reset button
+  const saveBtn = document.querySelector('.modal-foot .btn-primary');
+  if(saveBtn){saveBtn.textContent='🎯 Criar Lead';saveBtn.onclick=saveLead;}
+  showToast('✅ Lead actualizada');
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  const saveBtn = document.querySelector('.modal-foot .btn-primary');
+  if(saveBtn){saveBtn.textContent='🎯 Criar Lead';saveBtn.onclick=saveLead;}
+}
+
+function saveLead() {
+  const prenom = document.getElementById('fPrenom').value.trim();
+  if (!prenom) { showToast('⚠️ Insere o nome'); return; }
+  const l = mkLead(
+    prenom,
+    document.getElementById('fIcon').value || '👤',
+    document.getElementById('fSub').value,
+    document.getElementById('fService').value,
+    document.getElementById('fVille').value,
+    document.getElementById('fType').value,
+    document.getElementById('fSource').value,
+    document.getElementById('fNotes').value,
+  );
+  leads.unshift(l);
+  persist(); closeModal(); renderSidebar();
+  selectLead(l.id);
+  showToast(`🎯 Lead ${prenom} criada! Claude vai gerar M1 agora.`);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+hydrate();
+renderSidebar();
+checkWebhookParam();
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+const CFG_KEY = 'washnow_config_v1';
+
+const CFG_DEFAULTS = {
+  nomeEmpresa: 'Wash Now',
+  telefone: '+352 691 933 095',
+  email: 'diogocerqueira@washnow.lu',
+  morada: '15, rue Dr. Klein — L-9054 Ettelbruck',
+  responsavel: 'Diogo Cerqueira',
+  pRegulier: 29.50, pBisemaine: 30.00, pRepassage: 27.00, pJardinage: 28.00, pBureaux: 28.50,
+  tvaPrive: 8, tvaEmpresa: 17, desconto: 5,
+  m1: document.getElementById('cfg-m1')?.value || '',
+  m2sms: document.getElementById('cfg-m2sms')?.value || '',
+  m3: document.getElementById('cfg-m3')?.value || '',
+  m5: document.getElementById('cfg-m5')?.value || '',
+  argumento: document.getElementById('cfg-argumento')?.value || '',
+  vfToken: '', vfDomain: 'diogocerqueira635', waNum: '352691933095',
+  dayM1:0, dayM2:1, dayM3:3, dayM4:7, dayM5:14,
+};
+
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem(CFG_KEY);
+    const cfg = saved ? {...CFG_DEFAULTS, ...JSON.parse(saved)} : CFG_DEFAULTS;
+    document.getElementById('cfg-nome-empresa').value = cfg.nomeEmpresa || '';
+    document.getElementById('cfg-telefone').value     = cfg.telefone || '';
+    document.getElementById('cfg-email').value        = cfg.email || '';
+    document.getElementById('cfg-morada').value       = cfg.morada || '';
+    document.getElementById('cfg-responsavel').value  = cfg.responsavel || '';
+    document.getElementById('cfg-p-regulier').value   = cfg.pRegulier || 29.50;
+    document.getElementById('cfg-p-bisemaine').value  = cfg.pBisemaine || 30.00;
+    document.getElementById('cfg-p-repassage').value  = cfg.pRepassage || 27.00;
+    document.getElementById('cfg-p-jardinage').value  = cfg.pJardinage || 28.00;
+    document.getElementById('cfg-p-bureaux').value    = cfg.pBureaux || 28.50;
+    document.getElementById('cfg-tva-prive').value    = cfg.tvaPrive || 8;
+    document.getElementById('cfg-tva-empresa').value  = cfg.tvaEmpresa || 17;
+    document.getElementById('cfg-desconto').value     = cfg.desconto || 5;
+    if(cfg.m1)    document.getElementById('cfg-m1').value    = cfg.m1;
+    if(cfg.m2sms) document.getElementById('cfg-m2sms').value = cfg.m2sms;
+    if(cfg.m3)    document.getElementById('cfg-m3').value    = cfg.m3;
+    if(cfg.m5)    document.getElementById('cfg-m5').value    = cfg.m5;
+    if(cfg.argumento) document.getElementById('cfg-argumento').value = cfg.argumento;
+    document.getElementById('cfg-vf-token').value  = cfg.vfToken || '';
+    document.getElementById('cfg-vf-domain').value = cfg.vfDomain || '';
+    document.getElementById('cfg-wa-num').value    = cfg.waNum || '';
+    document.getElementById('cfg-day-m1').value    = cfg.dayM1 ?? 0;
+    document.getElementById('cfg-day-m2').value    = cfg.dayM2 ?? 1;
+    document.getElementById('cfg-day-m3').value    = cfg.dayM3 ?? 3;
+    document.getElementById('cfg-day-m4').value    = cfg.dayM4 ?? 7;
+    document.getElementById('cfg-day-m5').value    = cfg.dayM5 ?? 14;
+    recalcAllDiscounts();
+  } catch(e) { console.error(e); }
+}
+
+function saveConfig() {
+  const cfg = {
+    nomeEmpresa: document.getElementById('cfg-nome-empresa').value,
+    telefone:    document.getElementById('cfg-telefone').value,
+    email:       document.getElementById('cfg-email').value,
+    morada:      document.getElementById('cfg-morada').value,
+    responsavel: document.getElementById('cfg-responsavel').value,
+    pRegulier:   parseFloat(document.getElementById('cfg-p-regulier').value),
+    pBisemaine:  parseFloat(document.getElementById('cfg-p-bisemaine').value),
+    pRepassage:  parseFloat(document.getElementById('cfg-p-repassage').value),
+    pJardinage:  parseFloat(document.getElementById('cfg-p-jardinage').value),
+    pBureaux:    parseFloat(document.getElementById('cfg-p-bureaux').value),
+    tvaPrive:    parseFloat(document.getElementById('cfg-tva-prive').value),
+    tvaEmpresa:  parseFloat(document.getElementById('cfg-tva-empresa').value),
+    desconto:    parseFloat(document.getElementById('cfg-desconto').value),
+    m1:          document.getElementById('cfg-m1').value,
+    m2sms:       document.getElementById('cfg-m2sms').value,
+    m3:          document.getElementById('cfg-m3').value,
+    m5:          document.getElementById('cfg-m5').value,
+    argumento:   document.getElementById('cfg-argumento').value,
+    vfToken:     document.getElementById('cfg-vf-token').value,
+    vfDomain:    document.getElementById('cfg-vf-domain').value,
+    waNum:       document.getElementById('cfg-wa-num').value,
+    dayM1:       parseInt(document.getElementById('cfg-day-m1').value),
+    dayM2:       parseInt(document.getElementById('cfg-day-m2').value),
+    dayM3:       parseInt(document.getElementById('cfg-day-m3').value),
+    dayM4:       parseInt(document.getElementById('cfg-day-m4').value),
+    dayM5:       parseInt(document.getElementById('cfg-day-m5').value),
+  };
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  // Apply pipeline days to STEPS
+  STEPS[0].day = cfg.dayM1;
+  STEPS[1].day = cfg.dayM2;
+  STEPS[2].day = cfg.dayM2;
+  STEPS[3].day = cfg.dayM3;
+  STEPS[4].day = cfg.dayM4;
+  STEPS[5].day = cfg.dayM5;
+  const status = document.getElementById('cfg-save-status');
+  status.textContent = '✅ Guardado às ' + new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  setTimeout(()=>{ status.textContent=''; }, 3000);
+  showToast('✅ Configurações guardadas!');
+}
+
+function getConfig() {
+  try {
+    const saved = localStorage.getItem(CFG_KEY);
+    return saved ? {...CFG_DEFAULTS, ...JSON.parse(saved)} : CFG_DEFAULTS;
+  } catch(e) { return CFG_DEFAULTS; }
+}
+
+function updateAfterDiscount(input, targetId) {
+  const pct = parseFloat(document.getElementById('cfg-desconto')?.value || 5) / 100;
+  const val = parseFloat(input.value) || 0;
+  document.getElementById(targetId).value = (val * (1-pct)).toFixed(2);
+}
+
+function recalcAllDiscounts() {
+  ['regulier','bisemaine','repassage','jardinage','bureaux'].forEach(k => {
+    const inp = document.getElementById('cfg-p-'+k);
+    if(inp) updateAfterDiscount(inp, 'cfg-d-'+k);
   });
 }
 
-// ── EMAIL QUALIFICAÇÃO (regulier / bi-semaine) ────────────────────────────────
-function enviarEmailQualificacao(prenom, email, servico, zona, superficie, frequencia, tipoServico, row) {
-  const subject = "Votre demande de nettoyage — Wash Now 🏠";
-
-  const htmlBody =
-    "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>" +
-    "<div style='background:#1a1916;padding:20px;border-radius:12px 12px 0 0'>" +
-    "<h2 style='color:#fff;margin:0'>🧺 Wash Now</h2>" +
-    "<p style='color:rgba(255,255,255,0.6);margin:4px 0 0'>Le nettoyage qu'on n'oublie pas.</p>" +
-    "</div>" +
-    "<div style='background:#fff;padding:28px;border:1px solid #e0ddd6;border-top:none;border-radius:0 0 12px 12px'>" +
-    "<p>Bonjour <strong>" + prenom + "</strong>,</p>" +
-    "<p>Merci pour votre demande — nous sommes ravis de vous compter parmi nos futurs clients ! 😊</p>" +
-    "<p>Pour vous préparer un devis <strong>précis et personnalisé</strong>, j'aurais besoin de quelques informations supplémentaires :</p>" +
-
-    "<div style='background:#f4f3ef;border-radius:10px;padding:20px;margin:20px 0'>" +
-    "<p style='margin:0 0 12px;font-weight:bold;color:#1a6b4a'>📋 5 questions rapides :</p>" +
-    "<ol style='margin:0;padding-left:20px;line-height:2'>" +
-    "<li>Souhaitez-vous un nettoyage <strong>toutes les semaines</strong> ou <strong>toutes les 2 semaines</strong> ?</li>" +
-    "<li>Quelle est la superficie approximative de votre logement ? <em>(ex: 80m², 120m²...)</em></li>" +
-    "<li>Combien de chambres et salles de bain ?</li>" +
-    "<li>Souhaitez-vous ajouter le service de <strong>repassage</strong> ?</li>" +
-    "<li>Est-ce pour un particulier ou une entreprise ?</li>" +
-    "</ol>" +
-    "</div>" +
-
-    "<p>Il vous suffit de <strong>répondre à cet email</strong> — je vous prépare votre devis dans la journée ! 🚀</p>" +
-
-    "<div style='background:#e8f4ef;border-left:4px solid #1a6b4a;padding:14px;border-radius:0 8px 8px 0;margin:20px 0'>" +
-    "<p style='margin:0;font-size:0.9em;color:#1a4a35'>" +
-    "💡 <strong>Bonne nouvelle :</strong> nous avons actuellement une <strong>campagne -5% pour les nouveaux clients</strong>. " +
-    "Je l'appliquerai directement sur votre devis !</p>" +
-    "</div>" +
-
-    "<p>À très vite,</p>" +
-    "<p><strong>Diogo Cerqueira</strong><br>" +
-    "Wash Now Luxembourg<br>" +
-    "📞 +352 691 933 095<br>" +
-    "📍 15, rue Dr. Klein — L-9054 Ettelbruck</p>" +
-    "</div></div>";
-
-  MailApp.sendEmail({ to: email, subject: subject, htmlBody: htmlBody });
-  Logger.log("📧 Email qualificação enviado a: " + email);
-}
-
-// ── EMAIL VISITA (nettoyage en profondeur) ────────────────────────────────────
-function enviarEmailVisita(prenom, email, telefone, servico, zona) {
-  const subject = "Votre nettoyage en profondeur — Wash Now";
-
-  const waMensagem = encodeURIComponent(
-    "Bonjour " + prenom + " 👋\n\n" +
-    "Je vous contacte suite à votre demande de nettoyage en profondeur.\n" +
-    "Pour vous proposer un devis précis, je vous propose une visite gratuite (~15 min).\n\n" +
-    "Seriez-vous disponible cette semaine ?\n\n" +
-    "Diogo — Wash Now\n📞 +352 691 933 095"
-  );
-  const waLink = "https://wa.me/" + telefone.replace(/\D/g,'') + "?text=" + waMensagem;
-
-  const htmlBody =
-    "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>" +
-    "<div style='background:#1a1916;padding:20px;border-radius:12px 12px 0 0'>" +
-    "<h2 style='color:#fff;margin:0'>🧺 Wash Now</h2>" +
-    "</div>" +
-    "<div style='background:#fff;padding:28px;border:1px solid #e0ddd6;border-top:none;border-radius:0 0 12px 12px'>" +
-    "<p>Bonjour <strong>" + prenom + "</strong>,</p>" +
-    "<p>Merci pour votre demande de <strong>nettoyage en profondeur</strong> ! 🏠✨</p>" +
-    "<p>Pour ce type de prestation, nous préférons toujours passer vous rendre visite avant de vous soumettre un devis — " +
-    "cela nous permet d'évaluer précisément le travail et de vous garantir un résultat impeccable.</p>" +
-
-    "<div style='background:#f4f3ef;border-radius:10px;padding:20px;margin:20px 0;text-align:center'>" +
-    "<p style='font-size:1.1em;margin:0 0 8px'><strong>Visite gratuite & sans engagement</strong></p>" +
-    "<p style='color:#7a7a6e;margin:0'>~15 minutes · À votre domicile · Luxembourg</p>" +
-    "</div>" +
-
-    "<p>Je suis disponible <strong>du mardi au vendredi, de 10h à 18h</strong>. " +
-    "Quel créneau vous conviendrait le mieux cette semaine ou la semaine prochaine ?</p>" +
-
-    "<div style='background:#e8f4ef;border-left:4px solid #1a6b4a;padding:14px;border-radius:0 8px 8px 0;margin:20px 0'>" +
-    "<p style='margin:0;font-size:0.9em;color:#1a4a35'>" +
-    "💡 Nos clients nous choisissent pour notre <strong>fiabilité, notre discrétion et nos équipes formées</strong>. " +
-    "Nous intervenons dans tout le Luxembourg depuis 2021.</p>" +
-    "</div>" +
-
-    "<p>À très vite,</p>" +
-    "<p><strong>Diogo Cerqueira</strong><br>Wash Now Luxembourg<br>" +
-    "📞 +352 691 933 095<br>" +
-    "📍 15, rue Dr. Klein — L-9054 Ettelbruck</p>" +
-    "</div></div>";
-
-  MailApp.sendEmail({ to: email, subject: subject, htmlBody: htmlBody });
-  Logger.log("📧 Email visita enviado a: " + email);
-}
-
-// ── CRIAR DEVIS NO VOSFACTURES ────────────────────────────────────────────────
-// Chama esta função manualmente quando a lead responder com as informações
-// Preenche: row (número da linha na sheet), tipo ("regulier" ou "bi_semaine"), 
-//           horas (ex: 3), isEmpresa (true/false)
-function criarDevisVosFactures(row, tipo, horas, isEmpresa) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-
-  const nome       = sheet.getRange(row, COL.NOME).getValue();
-  const email      = sheet.getRange(row, COL.EMAIL).getValue();
-  const telefone   = String(sheet.getRange(row, COL.TELEFONE).getValue());
-  const zona       = sheet.getRange(row, COL.ZONA).getValue();
-  const frequencia = sheet.getRange(row, COL.FREQUENCIA).getValue();
-
-  const prenom     = nome.split(" ")[0];
-  const tva        = isEmpresa ? TVA_EMPRESA : TVA_PRIVE;
-  const precoHT    = PRICES[tipo] || 29.50;
-  const desconto   = 0.05; // 5%
-  const precoFinal = Math.round(precoHT * (1 - desconto) * 100) / 100;
-  const totalHT    = Math.round(precoFinal * horas * 100) / 100;
-  const totalTTC   = Math.round(totalHT * (1 + tva/100) * 100) / 100;
-
-  const nomeProduto = tipo === "bi_semaine"
-    ? "Nettoyage bi-hebdomadaire — " + horas + "h"
-    : "Nettoyage régulier — " + horas + "h";
-
-  const descricao = frequencia
-    ? "Service " + (tipo === "bi_semaine" ? "toutes les 2 semaines" : "hebdomadaire") + " · " + zona
-    : zona;
-
-  // Payload para VosFactures
-  const payload = {
-    api_token: VOSFACTURES_TOKEN,
-    invoice: {
-      kind: "estimate",         // devis
-      number: null,
-      issue_date: new Date().toISOString().split("T")[0],
-      payment_to_kind: 30,      // valable 30 jours
-      buyer_name: nome,
-      buyer_email: email,
-      buyer_phone: telefone,
-      buyer_city: zona || "Luxembourg",
-      buyer_country: "LU",
-      currency: "EUR",
-      lang: "fr",
-      description: "Campagne nouveaux clients — 5% de réduction appliquée",
-      positions: [
-        {
-          name: nomeProduto,
-          description: descricao,
-          quantity: 4,          // 4 semaines par mois
-          unit: "mois",
-          tax: tva,
-          price_net: precoFinal * horas,
-        }
-      ],
-      // Ligne de remise visible
-      invoice_template_id: null,
-    }
-  };
-
-  // Chamada à API VosFactures
-  const url = "https://" + VOSFACTURES_DOMAIN + ".vosfactures.fr/invoices.json";
-  const options = {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true,
-  };
-
-  const response = UrlFetchApp.fetch(url, options);
-  const result   = JSON.parse(response.getContentText());
-
-  if (result.id) {
-    const devisId  = result.id;
-    const devisNum = result.number || result.id;
-    const devisUrl = "https://" + VOSFACTURES_DOMAIN + ".vosfactures.fr/invoices/" + devisId;
-
-    // Guardar ID do devis na Sheet
-    sheet.getRange(row, COL.DEVIS_ID).setValue(devisId);
-    sheet.getRange(row, COL.VALOR).setValue(totalTTC);
-
-    Logger.log("✅ Devis criado: " + devisNum + " — " + devisUrl);
-
-    // Enviar email com devis à lead
-    enviarEmailDevis(prenom, email, telefone, nomeProduto, precoFinal, horas, tva, totalHT, totalTTC, devisUrl, isEmpresa);
-
-    // Alerta para Diogo
-    MailApp.sendEmail({
-      to: EMAIL_DIOGO,
-      subject: "✅ Devis criado — " + nome + " (" + totalTTC + "€ TTC)",
-      htmlBody: "<p>Devis <strong>" + devisNum + "</strong> criado e enviado a <strong>" + nome + "</strong>.</p>" +
-                "<p>Total: <strong>" + totalTTC + "€ TTC</strong></p>" +
-                "<p><a href='" + devisUrl + "'>Ver devis no VosFactures</a></p>"
-    });
-
-    return devisId;
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  const btn   = document.getElementById('settingsNavBtn');
+  const main  = document.getElementById('mainPanel');
+  const isOpen = panel.classList.contains('active');
+  if(isOpen) {
+    panel.classList.remove('active');
+    btn.classList.remove('active');
+    main.style.display = '';
   } else {
-    Logger.log("❌ Erro VosFactures: " + response.getContentText());
-    throw new Error("Erro ao criar devis: " + response.getContentText());
+    panel.classList.add('active');
+    btn.classList.add('active');
+    main.style.display = 'none';
+    loadConfig();
   }
 }
 
-// ── EMAIL COM DEVIS ───────────────────────────────────────────────────────────
-function enviarEmailDevis(prenom, email, telefone, servico, precoHT, horas, tva, totalHT, totalTTC, devisUrl, isEmpresa) {
-  const precoOriginal = Math.round(precoHT / 0.95 * 100) / 100;
-  const economia      = Math.round((precoOriginal - precoHT) * horas * 4 * 100) / 100;
+</script>
+</body>
+</html>
 
-  const waMensagem = encodeURIComponent(
-    "Bonjour " + prenom + " 👋\n\n" +
-    "Je vous ai envoyé votre devis par email.\n" +
-    "J'aimerais aussi vous proposer une courte visite gratuite pour faire connaissance " +
-    "et vous expliquer comment nous travaillons.\n\n" +
-    "Seriez-vous disponible cette semaine ?\n\n" +
-    "Diogo — Wash Now\n📞 +352 691 933 095"
-  );
-  const waLink = "https://wa.me/" + WHATSAPP_NUM + "?text=" + waMensagem;
-
-  const subject = "Votre devis Wash Now — Offre nouveaux clients 🎉";
-
-  const htmlBody =
-    "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>" +
-    "<div style='background:#1a1916;padding:20px;border-radius:12px 12px 0 0'>" +
-    "<h2 style='color:#fff;margin:0'>🧺 Wash Now</h2>" +
-    "<p style='color:rgba(255,255,255,0.6);margin:4px 0 0'>Le nettoyage qu'on n'oublie pas.</p>" +
-    "</div>" +
-    "<div style='background:#fff;padding:28px;border:1px solid #e0ddd6;border-top:none;border-radius:0 0 12px 12px'>" +
-    "<p>Bonjour <strong>" + prenom + "</strong>,</p>" +
-    "<p>Merci pour vos informations — voici votre devis personnalisé ! 🎉</p>" +
-
-    // Bloco destaque 5%
-    "<div style='background:linear-gradient(135deg,#1a6b4a,#2d9e6b);border-radius:12px;padding:20px;margin:20px 0;color:white;text-align:center'>" +
-    "<p style='margin:0 0 6px;font-size:0.85em;opacity:0.85'>🎁 CAMPAGNE NOUVEAUX CLIENTS</p>" +
-    "<p style='margin:0;font-size:1.8em;font-weight:bold'>-5% appliqués</p>" +
-    "<p style='margin:4px 0 0;opacity:0.85;font-size:0.9em'>Économie de " + economia + "€/mois sur votre contrat</p>" +
-    "</div>" +
-
-    // Tabela preço
-    "<table style='width:100%;border-collapse:collapse;margin:20px 0'>" +
-    "<tr style='background:#1a1916;color:white'>" +
-    "<th style='padding:10px;text-align:left'>Service</th>" +
-    "<th style='padding:10px;text-align:right'>Prix/h HT</th>" +
-    "<th style='padding:10px;text-align:right'>Heures</th>" +
-    "<th style='padding:10px;text-align:right'>Total/mois</th>" +
-    "</tr>" +
-    "<tr style='background:#f9f8f5'>" +
-    "<td style='padding:10px'>" + servico + "</td>" +
-    "<td style='padding:10px;text-align:right'>" + precoHT + "€</td>" +
-    "<td style='padding:10px;text-align:right'>" + horas + "h × 4</td>" +
-    "<td style='padding:10px;text-align:right'><strong>" + totalHT + "€</strong></td>" +
-    "</tr>" +
-    "<tr style='background:#f4f3ef'>" +
-    "<td colspan='3' style='padding:10px;text-align:right;color:#7a7a6e'>TVA " + tva + "%</td>" +
-    "<td style='padding:10px;text-align:right'>" + Math.round((totalTTC-totalHT)*100)/100 + "€</td>" +
-    "</tr>" +
-    "<tr style='background:#e8f4ef'>" +
-    "<td colspan='3' style='padding:10px;text-align:right;font-weight:bold'>TOTAL TTC / mois</td>" +
-    "<td style='padding:10px;text-align:right;font-weight:bold;color:#1a6b4a;font-size:1.1em'>" + totalTTC + "€</td>" +
-    "</tr>" +
-    "</table>" +
-
-    "<div style='text-align:center;margin:24px 0'>" +
-    "<a href='" + devisUrl + "' style='background:#1a6b4a;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block'>📄 Voir & Accepter le Devis</a>" +
-    "</div>" +
-
-    // Por que Wash Now
-    "<div style='background:#f4f3ef;border-radius:10px;padding:20px;margin:20px 0'>" +
-    "<p style='margin:0 0 10px;font-weight:bold'>🏆 Pourquoi choisir Wash Now ?</p>" +
-    "<ul style='margin:0;padding-left:20px;line-height:1.8;color:#4a4a42'>" +
-    "<li>✅ Équipes formées, fiables et assurées</li>" +
-    "<li>✅ Présents au Luxembourg depuis 2021</li>" +
-    "<li>✅ Produits écologiques fournis</li>" +
-    "<li>✅ Flexibilité horaire selon vos besoins</li>" +
-    "<li>✅ Un interlocuteur unique — toujours Diogo</li>" +
-    "</ul>" +
-    "</div>" +
-
-    "<p>Pour finaliser, j'aimerais passer vous rendre une courte visite gratuite — " +
-    "pour faire connaissance, voir votre espace et répondre à toutes vos questions. 😊</p>" +
-    "<p><strong>Seriez-vous disponible cette semaine ?</strong> " +
-    "Répondez à cet email ou écrivez-moi directement sur WhatsApp :</p>" +
-
-    "<div style='text-align:center;margin:20px 0'>" +
-    "<a href='" + waLink + "' style='background:#25D366;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block'>📱 WhatsApp — Marquer une visite</a>" +
-    "</div>" +
-
-    "<p>À très vite,</p>" +
-    "<p><strong>Diogo Cerqueira</strong><br>Wash Now Luxembourg<br>" +
-    "📞 +352 691 933 095<br>" +
-    "📍 15, rue Dr. Klein — L-9054 Ettelbruck</p>" +
-    "</div></div>";
-
-  MailApp.sendEmail({ to: email, subject: subject, htmlBody: htmlBody });
-  Logger.log("📧 Email devis enviado a: " + email);
-}
-
-// ── INSTALAR TRIGGER ──────────────────────────────────────────────────────────
-function instalarTrigger() {
-  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger("onNovaLead")
-    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
-    .onChange()
-    .create();
-  SpreadsheetApp.getUi().alert(
-    "✅ Trigger instalado!\n\n" +
-    "Fluxo activo:\n" +
-    "1. Lead entra → email qualificação automático\n" +
-    "2. Tu respondes com info → criarDevisVosFactures(row, tipo, horas, isEmpresa)\n" +
-    "3. Devis criado no VosFactures + email enviado à lead"
-  );
-}
-
-// ── COMO CRIAR UM DEVIS MANUALMENTE ──────────────────────────────────────────
-// Quando a lead responder ao email de qualificação, executa esta função:
-//
-// Exemplo: lead na linha 5, serviço regular, 3h, cliente privado:
-//   criarDevisVosFactures(5, "regulier", 3, false)
-//
-// Exemplo: lead na linha 8, bi-semaine, 2h, empresa:
-//   criarDevisVosFactures(8, "bi_semaine", 2, true)
-//
-// tipos disponíveis: "regulier", "bi_semaine", "repassage", "jardinage", "bureaux"
-
-// ── EMAIL QUALIFICAÇÃO — UNE FOIS PAR MOIS ───────────────────────────────────
-// Perceber se a lead quer limpeza a fundo ou genuinamente 1x/mês
-function enviarEmailQualifMois(prenom, email, servico, zona, superficie) {
-  const subject = "Votre demande de nettoyage — Wash Now 🏠";
-  const htmlBody =
-    "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>" +
-    "<div style='background:#1a1916;padding:20px;border-radius:12px 12px 0 0'>" +
-    "<h2 style='color:#fff;margin:0'>🧺 Wash Now</h2>" +
-    "</div>" +
-    "<div style='background:#fff;padding:28px;border:1px solid #e0ddd6;border-top:none;border-radius:0 0 12px 12px'>" +
-    "<p>Bonjour <strong>" + prenom + "</strong>,</p>" +
-    "<p>Merci pour votre demande — nous sommes ravis de vous compter parmi nos futurs clients ! 😊</p>" +
-    "<p>Vous avez mentionné une intervention <strong>une fois par mois</strong>. " +
-    "Pour mieux vous orienter, j'aurais besoin de comprendre votre besoin :</p>" +
-    "<div style='background:#f4f3ef;border-radius:10px;padding:20px;margin:20px 0'>" +
-    "<p style='margin:0 0 14px;font-weight:bold;color:#1a6b4a'>Laquelle de ces options correspond le mieux à votre besoin ?</p>" +
-    "<div style='background:#fff;border:2px solid #1a6b4a;border-radius:8px;padding:14px;margin-bottom:10px'>" +
-    "<p style='margin:0;font-weight:bold'>🧹 Option A — Nettoyage régulier mensuel</p>" +
-    "<p style='margin:4px 0 0;font-size:0.88em;color:#4a4a42'>Entretien de routine une fois par mois — poussières, sols, sanitaires, cuisine.</p>" +
-    "</div>" +
-    "<div style='background:#fff;border:2px solid #d4a017;border-radius:8px;padding:14px'>" +
-    "<p style='margin:0;font-weight:bold'>✨ Option B — Grand nettoyage / Nettoyage en profondeur</p>" +
-    "<p style='margin:4px 0 0;font-size:0.88em;color:#4a4a42'>Nettoyage complet et intensif — intérieur des placards, joints, vitres, etc. Idéal pour une remise à zéro.</p>" +
-    "</div>" +
-    "</div>" +
-    "<p>Il vous suffit de <strong>répondre A ou B</strong> — je m'occupe du reste ! 😊</p>" +
-    "<div style='background:#e8f4ef;border-left:4px solid #1a6b4a;padding:14px;border-radius:0 8px 8px 0;margin:20px 0'>" +
-    "<p style='margin:0;font-size:0.9em;color:#1a4a35'>💡 <strong>Bonne nouvelle :</strong> nous avons actuellement une <strong>campagne -5% pour les nouveaux clients</strong> — je l'appliquerai sur votre devis !</p>" +
-    "</div>" +
-    "<p>À très vite,</p>" +
-    "<p><strong>Diogo Cerqueira</strong><br>Wash Now Luxembourg<br>" +
-    "📞 +352 691 933 095<br>" +
-    "📍 15, rue Dr. Klein — L-9054 Ettelbruck</p>" +
-    "</div></div>";
-  MailApp.sendEmail({ to: email, subject: subject, htmlBody: htmlBody });
-  Logger.log("📧 Email qualif mois enviado a: " + email);
-}
