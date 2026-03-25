@@ -1687,16 +1687,22 @@ function toggleSettings() {
   if(isOpen) {
     panel.classList.remove('active');
     btn.classList.remove('active');
-    main.style.display = '';
+    main.style.display = 'flex';
+    main.style.flexDirection = 'column';
   } else {
     panel.classList.add('active');
     btn.classList.add('active');
     main.style.display = 'none';
     loadConfig();
+    // Force panel visible
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    panel.style.flex = '1';
+    panel.style.overflow = 'auto';
+    panel.style.background = 'var(--bg)';
   }
 }
 
 </script>
 </body>
 </html>
-
