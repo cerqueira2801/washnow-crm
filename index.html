@@ -40,7 +40,7 @@ body {
 }
 
 /* ── LAYOUT ── */
-.app { display: flex; height: 100vh; overflow: hidden; }
+.app { display: flex; height: 100vh; overflow: hidden; width: 100%; }
 
 /* SIDEBAR */
 .sidebar {
@@ -481,8 +481,8 @@ body {
 
 
 /* ── SETTINGS PAGE ── */
-.settings-view { display:none; flex:1; overflow-y:auto; padding:28px; flex-direction:column; gap:24px; }
-.settings-view.active { display:flex; }
+.settings-view { display:none; flex:1; overflow-y:scroll; padding:28px; flex-direction:column; gap:24px; background:var(--bg); height:100vh; max-height:100vh; }
+.settings-view.active { display:flex; flex:1; overflow-y:scroll; }
 .settings-header { margin-bottom:4px; }
 .settings-header h2 { font-family:'Instrument Serif',serif; font-size:1.4rem; margin-bottom:4px; }
 .settings-header p { font-size:0.8rem; color:var(--muted); }
