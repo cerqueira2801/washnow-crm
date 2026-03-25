@@ -425,6 +425,61 @@ body {
 
 .divider { height: 1px; background: var(--border); margin: 4px 0; }
 
+/* ── DEVIS MODAL ── */
+.devis-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.devis-card-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--gold-lt);
+}
+.devis-card-title { font-weight: 600; font-size: 0.9rem; color: var(--gold); flex: 1; }
+.devis-body { padding: 18px; }
+.devis-input-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 14px; }
+.devis-input-row .field { flex: 1; }
+.devis-preview {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  display: none;
+}
+.devis-preview.show { display: block; }
+.devis-preview-header {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--gold); letter-spacing: 0.5px;
+}
+.devis-preview-body {
+  padding: 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem; line-height: 1.7;
+  color: #d0cfc5; white-space: pre-wrap;
+  min-height: 80px;
+}
+.btn-send-devis {
+  width: 100%;
+  background: linear-gradient(135deg, var(--gold-lt), rgba(212,160,23,0.2));
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 8px; padding: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-send-devis:hover { background: var(--gold); color: #fff; }
+.btn-send-devis:disabled { opacity: 0.5; cursor: not-allowed; }
+
+
 /* ── SETTINGS PAGE ── */
 .settings-view { display:none; flex:1; overflow-y:auto; padding:28px; flex-direction:column; gap:24px; }
 .settings-view.active { display:flex; }
@@ -1063,6 +1118,36 @@ function renderMain() {
     </div>`;
   }).join('');
 
+  // Devis card HTML
+  const devisCardHtml = `
+    <div class="devis-card" id="devisCard-${l.id}">
+      <div class="devis-card-header">
+        <span style="font-size:1.1rem">📄</span>
+        <div class="devis-card-title">Enviar Orçamento</div>
+        <span style="font-size:0.72rem;color:var(--muted)">🤖 Claude envia o email</span>
+      </div>
+      <div class="devis-body">
+        <div class="devis-input-row">
+          <div class="field">
+            <label>Link do Devis (VosFactures)</label>
+            <input class="settings-input wide" id="devisLink-${l.id}" 
+              placeholder="https://diogocerqueira635.vosfactures.fr/invoices/..." 
+              oninput="previewDevisEmail('${l.id}')">
+          </div>
+        </div>
+        <div class="devis-preview" id="devisPreview-${l.id}">
+          <div class="devis-preview-header">✉️ Pré-visualização do email</div>
+          <div class="devis-preview-body" id="devisPreviewBody-${l.id}">
+            <span class="dots"><span></span><span></span><span></span></span> A gerar email...
+          </div>
+        </div>
+        <button class="btn-send-devis" id="devisSendBtn-${l.id}" 
+          onclick="sendDevisEmail('${l.id}')" disabled>
+          📤 Gerar Email e Copiar
+        </button>
+      </div>
+    </div>`;
+
   main.innerHTML = `
     <div class="main-header">
       <div class="main-avatar">${l.icon}</div>
@@ -1371,6 +1456,111 @@ function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
 hydrate();
 renderSidebar();
 checkWebhookParam();
+
+
+// ── DEVIS EMAIL ───────────────────────────────────────────────────────────────
+let devisEmailCache = {};
+
+function previewDevisEmail(leadId) {
+  const link = document.getElementById('devisLink-' + leadId)?.value?.trim();
+  const btn = document.getElementById('devisSendBtn-' + leadId);
+  const preview = document.getElementById('devisPreview-' + leadId);
+  const previewBody = document.getElementById('devisPreviewBody-' + leadId);
+  
+  if (!link || !link.includes('vosfactures')) {
+    btn.disabled = true;
+    preview.classList.remove('show');
+    return;
+  }
+  
+  btn.disabled = false;
+  preview.classList.add('show');
+  
+  // Generate preview with AI
+  generateDevisEmail(leadId, link);
+}
+
+async function generateDevisEmail(leadId, devisLink, force=false) {
+  const l = leads.find(x=>x.id===leadId);
+  if (!l) return;
+  const previewBody = document.getElementById('devisPreviewBody-' + leadId);
+  if (!previewBody) return;
+  
+  const cacheKey = leadId + '_' + devisLink;
+  if (!force && devisEmailCache[cacheKey]) {
+    previewBody.innerHTML = devisEmailCache[cacheKey].replace(/\n/g,'<br>');
+    return;
+  }
+  
+  previewBody.innerHTML = '<span class="dots"><span></span><span></span><span></span></span> A gerar email com IA...';
+  
+  const prompt = `Tu és o Diogo, fundador da Wash Now Luxembourg. Escreve um email profissional para enviar o orçamento a ${l.prenom} (${l.service} · ${l.ville}).
+
+O email deve:
+1. Agradecer pelas informações fornecidas
+2. Apresentar o orçamento com o link: ${devisLink}
+3. Mencionar que será sempre a MESMA colaboradora dedicada a tratar do espaço — continuidade, confiança, conhece as preferências do cliente
+4. Mencionar o desconto de 5% para novos clientes já aplicado
+5. Propor uma visita gratuita de 15 minutos para se conhecerem e ver o espaço
+6. Tom caloroso mas profissional, em francês
+7. Máximo 200 palavras
+8. Assinar como: Diogo Cerqueira | Wash Now Luxembourg | +352 691 933 095
+
+IMPORTANTE: Não uses linguagem genérica. Personaliza com o nome ${l.prenom} e o serviço ${l.service}.
+
+Responde APENAS com o email, sem introdução.
+Formato:
+ASSUNTO: [assunto]
+CORPO: [corpo do email]`;
+
+  try {
+    const raw = await callAPI(prompt);
+    const subjMatch = raw.match(/ASSUNTO:\s*(.+)/i);
+    const bodyMatch = raw.match(/CORPO:\s*([\s\S]+)/i);
+    const subject = subjMatch ? subjMatch[1].trim() : 'Votre devis Wash Now';
+    const body = bodyMatch ? bodyMatch[1].trim() : raw.trim();
+    const full = 'ASSUNTO: ' + subject + '\n\n' + body;
+    devisEmailCache[cacheKey] = full;
+    previewBody.innerHTML = full.replace(/\n/g,'<br>');
+  } catch(e) {
+    previewBody.innerHTML = 'Erro ao gerar email. Clica em "Gerar Email" para tentar novamente.';
+  }
+}
+
+async function sendDevisEmail(leadId) {
+  const l = leads.find(x=>x.id===leadId);
+  if (!l) return;
+  const link = document.getElementById('devisLink-' + leadId)?.value?.trim();
+  if (!link) return;
+  
+  const btn = document.getElementById('devisSendBtn-' + leadId);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="dots"><span></span><span></span><span></span></span> A gerar...';
+  
+  const cacheKey = leadId + '_' + link;
+  if (!devisEmailCache[cacheKey]) {
+    await generateDevisEmail(leadId, link, true);
+  }
+  
+  const emailText = devisEmailCache[cacheKey] || '';
+  
+  // Copy to clipboard
+  navigator.clipboard.writeText(emailText).then(() => {
+    // Log in history
+    l.history.unshift({ 
+      icon: '📄', 
+      text: 'Email de orçamento gerado e copiado — devis: ' + link.split('/').pop(), 
+      who: 'ai', 
+      date: fmt(new Date()) 
+    });
+    persist();
+    renderMain();
+    showToast('✅ Email copiado! Cola no teu cliente de email.');
+  });
+  
+  btn.disabled = false;
+  btn.innerHTML = '📤 Gerar Email e Copiar';
+}
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 const CFG_KEY = 'washnow_config_v1';
